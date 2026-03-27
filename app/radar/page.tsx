@@ -6,6 +6,9 @@ import {
   type FundingDataPoint,
   type ScoreDataPoint,
 } from "./RadarCharts";
+import Pagination from "@/components/Pagination";
+
+const LIMIT = 50;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -42,10 +45,21 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default async function RadarPage() {
-  const [stats, projects] = await Promise.all([getStats(), getProjects()]);
+export default async function RadarPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ offset?: string }>;
+}) {
+  const { offset: offsetStr } = await searchParams;
+  const offset = Math.max(0, parseInt(offsetStr ?? "0", 10) || 0);
 
-  // Derive chart data from real projects.
+  const [stats, projectsPage] = await Promise.all([
+    getStats(),
+    getProjects(LIMIT, offset),
+  ]);
+  const projects = projectsPage.data;
+
+  // Derive chart data from real projects (all visible on the current page).
   const fundingData: FundingDataPoint[] = projects
     .filter((p) => p.funding_usd != null || p.kloc_shipped != null)
     .map((p) => ({
@@ -130,79 +144,88 @@ export default async function RadarPage() {
               No projects tracked yet.
             </p>
           ) : (
-            <div
-              className="rounded-lg overflow-hidden"
-              style={{ border: "1px solid var(--border)" }}
-            >
-              <div className="overflow-x-auto">
-                <table className="radar-table">
-                  <thead style={{ backgroundColor: "var(--surface)" }}>
-                    <tr>
-                      <th>Project Name</th>
-                      <th>Claimed Tech</th>
-                      <th>GitHub Status</th>
-                      <th>Vaporware Score</th>
-                      <th>Verdict</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {projects.map((p) => {
-                      const color = scoreColor(p.vaporware_score);
-                      const ghClass = GITHUB_CLASS[p.github_status] ?? GITHUB_CLASS.UNKNOWN;
-                      const vClass  = VERDICT_CLASS[p.verdict] ?? VERDICT_CLASS.UNKNOWN;
-                      return (
-                        <tr key={p.slug} className="radar-row">
-                          <td>
-                            <span
-                              className="text-sm font-semibold"
-                              style={{ fontFamily: "var(--font-geist-mono)", color: "var(--text-primary)" }}
-                            >
-                              {p.name}
-                            </span>
-                          </td>
-
-                          <td
-                            className="text-xs italic max-w-[200px] truncate"
-                            style={{ color: "var(--text-muted)", maxWidth: "200px" }}
-                          >
-                            {p.claimed_stack.join(", ") || "—"}
-                          </td>
-
-                          <td>
-                            <span className={ghClass}>{p.github_status}</span>
-                          </td>
-
-                          <td>
-                            <div className="flex items-center gap-2">
-                              <span className="inline-bar-track">
-                                <span
-                                  className="inline-bar-fill"
-                                  style={{
-                                    width:      `${p.vaporware_score}%`,
-                                    background: color,
-                                    boxShadow:  `0 0 4px ${color}80`,
-                                  }}
-                                />
-                              </span>
+            <>
+              <div
+                className="rounded-lg overflow-hidden"
+                style={{ border: "1px solid var(--border)" }}
+              >
+                <div className="overflow-x-auto">
+                  <table className="radar-table">
+                    <thead style={{ backgroundColor: "var(--surface)" }}>
+                      <tr>
+                        <th>Project Name</th>
+                        <th>Claimed Tech</th>
+                        <th>GitHub Status</th>
+                        <th>Vaporware Score</th>
+                        <th>Verdict</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {projects.map((p) => {
+                        const color = scoreColor(p.vaporware_score);
+                        const ghClass = GITHUB_CLASS[p.github_status] ?? GITHUB_CLASS.UNKNOWN;
+                        const vClass  = VERDICT_CLASS[p.verdict] ?? VERDICT_CLASS.UNKNOWN;
+                        return (
+                          <tr key={p.slug} className="radar-row">
+                            <td>
                               <span
-                                className="text-xs font-bold tabular-nums"
-                                style={{ fontFamily: "var(--font-geist-mono)", color }}
+                                className="text-sm font-semibold"
+                                style={{ fontFamily: "var(--font-geist-mono)", color: "var(--text-primary)" }}
                               >
-                                {p.vaporware_score}%
+                                {p.name}
                               </span>
-                            </div>
-                          </td>
+                            </td>
 
-                          <td>
-                            <span className={vClass}>{p.verdict}</span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                            <td
+                              className="text-xs italic max-w-[200px] truncate"
+                              style={{ color: "var(--text-muted)", maxWidth: "200px" }}
+                            >
+                              {p.claimed_stack.join(", ") || "—"}
+                            </td>
+
+                            <td>
+                              <span className={ghClass}>{p.github_status}</span>
+                            </td>
+
+                            <td>
+                              <div className="flex items-center gap-2">
+                                <span className="inline-bar-track">
+                                  <span
+                                    className="inline-bar-fill"
+                                    style={{
+                                      width:      `${p.vaporware_score}%`,
+                                      background: color,
+                                      boxShadow:  `0 0 4px ${color}80`,
+                                    }}
+                                  />
+                                </span>
+                                <span
+                                  className="text-xs font-bold tabular-nums"
+                                  style={{ fontFamily: "var(--font-geist-mono)", color }}
+                                >
+                                  {p.vaporware_score}%
+                                </span>
+                              </div>
+                            </td>
+
+                            <td>
+                              <span className={vClass}>{p.verdict}</span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+
+              <Pagination
+                total={projectsPage.total}
+                limit={LIMIT}
+                offset={offset}
+                basePath="/radar"
+              />
+            </>
           )}
         </section>
 

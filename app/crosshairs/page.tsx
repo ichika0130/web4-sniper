@@ -1,5 +1,8 @@
 import { getArticles } from "@/lib/api";
 import type { Verdict } from "@/lib/api";
+import Pagination from "@/components/Pagination";
+
+const LIMIT = 20;
 
 function scoreColor(score: number): string {
   if (score > 75) return "var(--danger)";
@@ -14,8 +17,16 @@ const VERDICT_STYLE: Record<Verdict, { color: string; bg: string }> = {
   UNKNOWN:    { color: "var(--text-muted)", bg: "rgba(74,85,104,0.15)" },
 };
 
-export default async function CrosshairsPage() {
-  const articles = await getArticles();
+export default async function CrosshairsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ offset?: string }>;
+}) {
+  const { offset: offsetStr } = await searchParams;
+  const offset = Math.max(0, parseInt(offsetStr ?? "0", 10) || 0);
+
+  const articlesPage = await getArticles(LIMIT, offset);
+  const articles = articlesPage.data;
 
   return (
     <div className="w-full px-6 py-16">
@@ -50,92 +61,101 @@ export default async function CrosshairsPage() {
             No teardowns published yet.
           </p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {articles.map((article) => {
-              const color   = scoreColor(article.vaporware_score);
-              const verdict = VERDICT_STYLE[article.verdict] ?? VERDICT_STYLE.UNKNOWN;
-              const date    = article.published_at
-                ? new Date(article.published_at).toISOString().slice(0, 10)
-                : "—";
-              return (
-                <article
-                  key={article.slug}
-                  className="article-card"
-                  style={{ gap: "1rem" }}
-                >
-                  {/* Meta row */}
-                  <div className="flex items-center gap-3">
-                    <span
-                      className="text-xs tabular-nums"
-                      style={{ fontFamily: "var(--font-geist-mono)", color: "var(--text-muted)" }}
-                    >
-                      {date}
-                    </span>
-                    <span
-                      className="text-xs font-bold tracking-widest px-2 py-0.5 rounded"
-                      style={{
-                        fontFamily:      "var(--font-geist-mono)",
-                        color:           verdict.color,
-                        backgroundColor: verdict.bg,
-                        border:          `1px solid ${verdict.color}`,
-                      }}
-                    >
-                      {article.verdict}
-                    </span>
-                  </div>
-
-                  {/* Title */}
-                  <h2
-                    className="text-base font-bold leading-snug tracking-wide"
-                    style={{ fontFamily: "var(--font-geist-mono)", color: "var(--text-primary)" }}
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {articles.map((article) => {
+                const color   = scoreColor(article.vaporware_score);
+                const verdict = VERDICT_STYLE[article.verdict] ?? VERDICT_STYLE.UNKNOWN;
+                const date    = article.published_at
+                  ? new Date(article.published_at).toISOString().slice(0, 10)
+                  : "—";
+                return (
+                  <article
+                    key={article.slug}
+                    className="article-card"
+                    style={{ gap: "1rem" }}
                   >
-                    {article.title}
-                  </h2>
-
-                  {/* Vaporware bar */}
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
+                    {/* Meta row */}
+                    <div className="flex items-center gap-3">
                       <span
-                        className="text-xs font-semibold tracking-wider uppercase"
+                        className="text-xs tabular-nums"
                         style={{ fontFamily: "var(--font-geist-mono)", color: "var(--text-muted)" }}
                       >
-                        Vaporware Score
+                        {date}
                       </span>
                       <span
-                        className="text-xs font-bold tabular-nums"
-                        style={{ fontFamily: "var(--font-geist-mono)", color }}
+                        className="text-xs font-bold tracking-widest px-2 py-0.5 rounded"
+                        style={{
+                          fontFamily:      "var(--font-geist-mono)",
+                          color:           verdict.color,
+                          backgroundColor: verdict.bg,
+                          border:          `1px solid ${verdict.color}`,
+                        }}
                       >
-                        {article.vaporware_score}%
+                        {article.verdict}
                       </span>
                     </div>
-                    <div className="buzzword-bar-track">
-                      <div
-                        className="buzzword-bar-fill"
-                        style={{
-                          width:      `${article.vaporware_score}%`,
-                          background: color,
-                          boxShadow:  `0 0 6px ${color}80`,
-                        }}
-                      />
+
+                    {/* Title */}
+                    <h2
+                      className="text-base font-bold leading-snug tracking-wide"
+                      style={{ fontFamily: "var(--font-geist-mono)", color: "var(--text-primary)" }}
+                    >
+                      {article.title}
+                    </h2>
+
+                    {/* Vaporware bar */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span
+                          className="text-xs font-semibold tracking-wider uppercase"
+                          style={{ fontFamily: "var(--font-geist-mono)", color: "var(--text-muted)" }}
+                        >
+                          Vaporware Score
+                        </span>
+                        <span
+                          className="text-xs font-bold tabular-nums"
+                          style={{ fontFamily: "var(--font-geist-mono)", color }}
+                        >
+                          {article.vaporware_score}%
+                        </span>
+                      </div>
+                      <div className="buzzword-bar-track">
+                        <div
+                          className="buzzword-bar-fill"
+                          style={{
+                            width:      `${article.vaporware_score}%`,
+                            background: color,
+                            boxShadow:  `0 0 6px ${color}80`,
+                          }}
+                        />
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Excerpt / one-liner */}
-                  <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-                    {article.one_liner ?? (article.body[0]?.body ?? "")}
-                  </p>
+                    {/* Excerpt / one-liner */}
+                    <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                      {article.one_liner ?? (article.body[0]?.body ?? "")}
+                    </p>
 
-                  {/* Link */}
-                  <a
-                    href={`/crosshairs/${article.slug}`}
-                    className="read-link mt-auto"
-                  >
-                    READ TEARDOWN →
-                  </a>
-                </article>
-              );
-            })}
-          </div>
+                    {/* Link */}
+                    <a
+                      href={`/crosshairs/${article.slug}`}
+                      className="read-link mt-auto"
+                    >
+                      READ TEARDOWN →
+                    </a>
+                  </article>
+                );
+              })}
+            </div>
+
+            <Pagination
+              total={articlesPage.total}
+              limit={LIMIT}
+              offset={offset}
+              basePath="/crosshairs"
+            />
+          </>
         )}
       </div>
     </div>

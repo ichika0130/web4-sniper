@@ -12,12 +12,13 @@ function scoreColor(score: number): string {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function Home() {
-  const [stats, articles, buzzwords] = await Promise.all([
+  const [stats, articlesPage, buzzwords] = await Promise.all([
     getStats(),
-    getArticles(),
+    getArticles(3, 0),
     getBuzzwords(),
   ]);
 
+  const articles = articlesPage.data;
   const featured = articles[0] ?? null;
   const recentArticles = articles.slice(0, 3);
   const buzzMax = buzzwords.length > 0 ? Math.max(...buzzwords.map((b) => b.count)) : 1;

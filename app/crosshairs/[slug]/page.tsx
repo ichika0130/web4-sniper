@@ -5,7 +5,7 @@ import type { Verdict } from "@/lib/api";
 // ─── Static params ────────────────────────────────────────────────────────────
 
 export async function generateStaticParams() {
-  const articles = await getArticles();
+  const { data: articles } = await getArticles(200, 0);
   return articles.map((a) => ({ slug: a.slug }));
 }
 

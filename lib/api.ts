@@ -59,6 +59,14 @@ export interface Buzzword {
   count: number;
 }
 
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+}
+
 // ─── Fetch helpers ────────────────────────────────────────────────────────────
 
 const FETCH_OPTS = { next: { revalidate: 300 } } as const;
@@ -77,6 +85,10 @@ async function apiFetch<T>(path: string, fallback: T): Promise<T> {
   }
 }
 
+function emptyPage<T>(limit: number, offset: number): PaginatedResponse<T> {
+  return { data: [], total: 0, limit, offset, has_more: false };
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export async function getStats(): Promise<Stats> {
@@ -90,16 +102,28 @@ export async function getStats(): Promise<Stats> {
   });
 }
 
-export async function getProjects(): Promise<Project[]> {
-  return apiFetch<Project[]>("/api/v1/projects", []);
+export async function getProjects(
+  limit = 50,
+  offset = 0,
+): Promise<PaginatedResponse<Project>> {
+  return apiFetch<PaginatedResponse<Project>>(
+    `/api/v1/projects?limit=${limit}&offset=${offset}`,
+    emptyPage<Project>(limit, offset),
+  );
 }
 
 export async function getProjectBySlug(slug: string): Promise<Project | null> {
   return apiFetch<Project | null>(`/api/v1/projects/${slug}`, null);
 }
 
-export async function getArticles(): Promise<Article[]> {
-  return apiFetch<Article[]>("/api/v1/articles", []);
+export async function getArticles(
+  limit = 50,
+  offset = 0,
+): Promise<PaginatedResponse<Article>> {
+  return apiFetch<PaginatedResponse<Article>>(
+    `/api/v1/articles?limit=${limit}&offset=${offset}`,
+    emptyPage<Article>(limit, offset),
+  );
 }
 
 export async function getArticleBySlug(slug: string): Promise<Article | null> {
