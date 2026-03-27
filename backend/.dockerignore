@@ -1,4 +1,0 @@
-.env
-.git
-tmp/
-*_test.go
