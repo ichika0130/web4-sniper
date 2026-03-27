@@ -1,51 +1,7 @@
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-
-const FEATURED = {
-  name:    "NeuralMesh Protocol",
-  verdict: "VAPORWARE" as const,
-  summary: "Claims quantum-entangled AI nodes. Actual stack: AWS Lambda + MongoDB.",
-  slug:    "/crosshairs/neuralmesh-protocol",
-};
-
-const STATS = [
-  { label: "Projects Tracked",    value: "47" },
-  { label: "Avg Vaporware Score", value: "81%" },
-  { label: "Dead GitHub Repos",   value: "34" },
-  { label: "Snipe of the Week",   value: "NeuralMesh" },
-];
-
-const ARTICLES = [
-  {
-    name:    "NeuralMesh Protocol",
-    score:   94,
-    excerpt: "Their whitepaper cites a 2019 Medium post as a primary source.",
-    slug:    "/crosshairs/neuralmesh-protocol",
-  },
-  {
-    name:    "Symbiont Chain",
-    score:   67,
-    excerpt: "Legitimate zkML research buried under 40 pages of tokenomics.",
-    slug:    "/crosshairs/symbiont-chain",
-  },
-  {
-    name:    "Web4 Foundation DAO",
-    score:   99,
-    excerpt: "The 'foundation' is a Notion page. The DAO has 3 members.",
-    slug:    "/crosshairs/web4-foundation-dao",
-  },
-];
-
-const BUZZWORDS = [
-  { word: "Symbiotic",      count: 38 },
-  { word: "Cognitive Layer",count: 27 },
-  { word: "Quantum-ready",  count: 24 },
-  { word: "Post-blockchain",count: 19 },
-  { word: "AGI-adjacent",   count: 11 },
-];
+import { getStats, getArticles, getBuzzwords } from "@/lib/api";
+import type { Verdict } from "@/lib/api";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const BUZZ_MAX = Math.max(...BUZZWORDS.map((b) => b.count));
 
 function scoreColor(score: number): string {
   if (score > 75) return "var(--danger)";
@@ -55,7 +11,29 @@ function scoreColor(score: number): string {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function Home() {
+export default async function Home() {
+  const [stats, articles, buzzwords] = await Promise.all([
+    getStats(),
+    getArticles(),
+    getBuzzwords(),
+  ]);
+
+  const featured = articles[0] ?? null;
+  const recentArticles = articles.slice(0, 3);
+  const buzzMax = buzzwords.length > 0 ? Math.max(...buzzwords.map((b) => b.count)) : 1;
+
+  const STATS_CARDS = [
+    { label: "Projects Tracked",    value: String(stats.total_projects) },
+    { label: "Avg Vaporware Score", value: `${Math.round(stats.avg_vaporware_score)}%` },
+    { label: "Dead GitHub Repos",   value: String(stats.dead_repos) },
+    { label: "Snipe of the Week",   value: stats.snipe_of_the_week || "—" },
+  ];
+
+  const VERDICT_GLOW: Partial<Record<Verdict, string>> = {
+    VAPORWARE: "glow-red",
+    LEGITIMATE: "glow-green",
+  };
+
   return (
     <>
       {/* ══════════════════════════════════════════════════════════════════════
@@ -98,44 +76,45 @@ export default function Home() {
           </p>
 
           {/* Featured card — Snipe of the Week */}
-          <div className="featured-card mt-4 max-w-2xl">
-            <p
-              className="mb-3 text-xs font-bold tracking-[0.18em] uppercase"
-              style={{ fontFamily: "var(--font-geist-mono)", color: "var(--text-muted)" }}
-            >
-              ◎ SNIPE OF THE WEEK
-            </p>
-
-            <div className="flex flex-wrap items-center gap-3 mb-2">
-              <span
-                className="text-lg font-bold tracking-wide"
-                style={{ fontFamily: "var(--font-geist-mono)", color: "var(--text-primary)" }}
+          {featured && (
+            <div className="featured-card mt-4 max-w-2xl">
+              <p
+                className="mb-3 text-xs font-bold tracking-[0.18em] uppercase"
+                style={{ fontFamily: "var(--font-geist-mono)", color: "var(--text-muted)" }}
               >
-                {FEATURED.name}
-              </span>
+                ◎ SNIPE OF THE WEEK
+              </p>
 
-              {/* Verdict badge */}
-              <span
-                className="glow-red px-2 py-0.5 text-xs font-bold tracking-widest rounded"
-                style={{
-                  fontFamily:      "var(--font-geist-mono)",
-                  color:           "var(--danger)",
-                  border:          "1px solid var(--danger)",
-                  backgroundColor: "rgba(255,59,59,0.08)",
-                }}
-              >
-                {FEATURED.verdict}
-              </span>
+              <div className="flex flex-wrap items-center gap-3 mb-2">
+                <span
+                  className="text-lg font-bold tracking-wide"
+                  style={{ fontFamily: "var(--font-geist-mono)", color: "var(--text-primary)" }}
+                >
+                  {featured.project_name}
+                </span>
+
+                <span
+                  className={`px-2 py-0.5 text-xs font-bold tracking-widest rounded ${VERDICT_GLOW[featured.verdict] ?? ""}`}
+                  style={{
+                    fontFamily:      "var(--font-geist-mono)",
+                    color:           scoreColor(featured.vaporware_score),
+                    border:          `1px solid ${scoreColor(featured.vaporware_score)}`,
+                    backgroundColor: `${scoreColor(featured.vaporware_score)}14`,
+                  }}
+                >
+                  {featured.verdict}
+                </span>
+              </div>
+
+              <p className="mb-4 text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                {featured.one_liner ?? featured.title}
+              </p>
+
+              <a href={`/crosshairs/${featured.slug}`} className="read-link">
+                READ TEARDOWN →
+              </a>
             </div>
-
-            <p className="mb-4 text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-              {FEATURED.summary}
-            </p>
-
-            <a href={FEATURED.slug} className="read-link">
-              READ TEARDOWN →
-            </a>
-          </div>
+          )}
         </div>
       </section>
 
@@ -150,7 +129,7 @@ export default function Home() {
         }}
       >
         <div className="mx-auto max-w-5xl grid grid-cols-2 md:grid-cols-4 gap-4">
-          {STATS.map(({ label, value }) => (
+          {STATS_CARDS.map(({ label, value }) => (
             <div key={label} className="stat-card text-center">
               <p
                 className="text-2xl md:text-3xl font-bold tracking-tight mb-1"
@@ -175,7 +154,6 @@ export default function Home() {
       <section className="w-full px-6 py-16" style={{ borderBottom: "1px solid var(--border)" }}>
         <div className="mx-auto max-w-5xl">
 
-          {/* Section header */}
           <div className="flex items-baseline justify-between mb-8">
             <h2
               className="text-sm font-bold tracking-[0.2em] uppercase"
@@ -188,62 +166,62 @@ export default function Home() {
             </a>
           </div>
 
-          {/* Article grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {ARTICLES.map((article) => {
-              const color = scoreColor(article.score);
-              return (
-                <article key={article.slug} className="article-card">
+          {recentArticles.length === 0 ? (
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+              No articles published yet.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {recentArticles.map((article) => {
+                const color = scoreColor(article.vaporware_score);
+                return (
+                  <article key={article.slug} className="article-card">
+                    <h3
+                      className="text-sm font-bold tracking-wide"
+                      style={{ fontFamily: "var(--font-geist-mono)", color: "var(--text-primary)" }}
+                    >
+                      {article.project_name}
+                    </h3>
 
-                  {/* Project name */}
-                  <h3
-                    className="text-sm font-bold tracking-wide"
-                    style={{ fontFamily: "var(--font-geist-mono)", color: "var(--text-primary)" }}
-                  >
-                    {article.name}
-                  </h3>
-
-                  {/* Vaporware score + bar */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span
-                        className="text-xs font-semibold tracking-wider"
-                        style={{ fontFamily: "var(--font-geist-mono)", color: "var(--text-muted)" }}
-                      >
-                        VAPORWARE SCORE
-                      </span>
-                      <span
-                        className="text-xs font-bold"
-                        style={{ fontFamily: "var(--font-geist-mono)", color }}
-                      >
-                        {article.score}%
-                      </span>
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span
+                          className="text-xs font-semibold tracking-wider"
+                          style={{ fontFamily: "var(--font-geist-mono)", color: "var(--text-muted)" }}
+                        >
+                          VAPORWARE SCORE
+                        </span>
+                        <span
+                          className="text-xs font-bold"
+                          style={{ fontFamily: "var(--font-geist-mono)", color }}
+                        >
+                          {article.vaporware_score}%
+                        </span>
+                      </div>
+                      <div className="buzzword-bar-track">
+                        <div
+                          className="buzzword-bar-fill"
+                          style={{
+                            width:      `${article.vaporware_score}%`,
+                            background: color,
+                            boxShadow:  `0 0 6px ${color}80`,
+                          }}
+                        />
+                      </div>
                     </div>
-                    <div className="buzzword-bar-track">
-                      <div
-                        className="buzzword-bar-fill"
-                        style={{
-                          width:      `${article.score}%`,
-                          background: color,
-                          boxShadow:  `0 0 6px ${color}80`,
-                        }}
-                      />
-                    </div>
-                  </div>
 
-                  {/* Excerpt */}
-                  <p className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
-                    {article.excerpt}
-                  </p>
+                    <p className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                      {article.one_liner ?? article.title}
+                    </p>
 
-                  {/* Link */}
-                  <a href={article.slug} className="read-link mt-auto">
-                    READ →
-                  </a>
-                </article>
-              );
-            })}
-          </div>
+                    <a href={`/crosshairs/${article.slug}`} className="read-link mt-auto">
+                      READ →
+                    </a>
+                  </article>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 
@@ -263,32 +241,38 @@ export default function Home() {
             Top buzzwords detected across all tracked whitepapers this week.
           </p>
 
-          <ul className="flex flex-col gap-5 max-w-2xl">
-            {BUZZWORDS.map(({ word, count }) => {
-              const pct = Math.round((count / BUZZ_MAX) * 100);
-              return (
-                <li key={word}>
-                  <div className="flex items-baseline justify-between mb-2">
-                    <span
-                      className="text-sm font-semibold tracking-wide"
-                      style={{ fontFamily: "var(--font-geist-mono)", color: "var(--text-primary)" }}
-                    >
-                      {word}
-                    </span>
-                    <span
-                      className="text-xs tabular-nums"
-                      style={{ fontFamily: "var(--font-geist-mono)", color: "var(--text-muted)" }}
-                    >
-                      {count} occurrences
-                    </span>
-                  </div>
-                  <div className="buzzword-bar-track">
-                    <div className="buzzword-bar-fill" style={{ width: `${pct}%` }} />
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+          {buzzwords.length === 0 ? (
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+              No buzzwords tracked yet this week.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-5 max-w-2xl">
+              {buzzwords.map(({ word, count }) => {
+                const pct = Math.round((count / buzzMax) * 100);
+                return (
+                  <li key={word}>
+                    <div className="flex items-baseline justify-between mb-2">
+                      <span
+                        className="text-sm font-semibold tracking-wide"
+                        style={{ fontFamily: "var(--font-geist-mono)", color: "var(--text-primary)" }}
+                      >
+                        {word}
+                      </span>
+                      <span
+                        className="text-xs tabular-nums"
+                        style={{ fontFamily: "var(--font-geist-mono)", color: "var(--text-muted)" }}
+                      >
+                        {count} occurrences
+                      </span>
+                    </div>
+                    <div className="buzzword-bar-track">
+                      <div className="buzzword-bar-fill" style={{ width: `${pct}%` }} />
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
       </section>
     </>

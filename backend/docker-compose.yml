@@ -1,0 +1,30 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: web4sniper
+      POSTGRES_USER: sniper
+      POSTGRES_PASSWORD: sniper123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql
+
+  api:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://sniper:sniper123@db:5432/web4sniper
+      PORT: 8080
+      FRONTEND_URL: http://localhost:3000
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+    depends_on:
+      - db
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

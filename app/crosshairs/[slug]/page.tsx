@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
-import { ARTICLES, getArticleBySlug } from "@/lib/articles";
-import type { Verdict } from "@/lib/articles";
+import { getArticles, getArticleBySlug } from "@/lib/api";
+import type { Verdict } from "@/lib/api";
 
 // ─── Static params ────────────────────────────────────────────────────────────
 
-export function generateStaticParams() {
-  return ARTICLES.map((a) => ({ slug: a.slug }));
+export async function generateStaticParams() {
+  const articles = await getArticles();
+  return articles.map((a) => ({ slug: a.slug }));
 }
 
 // ─── Metadata ─────────────────────────────────────────────────────────────────
@@ -16,11 +17,11 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const article   = getArticleBySlug(slug);
+  const article   = await getArticleBySlug(slug);
   if (!article) return {};
   return {
     title:       `${article.title} — WEB4 SNIPER`,
-    description: article.oneLiner,
+    description: article.one_liner ?? article.title,
   };
 }
 
@@ -30,12 +31,6 @@ function scoreColor(score: number): string {
   if (score > 75) return "var(--danger)";
   if (score >= 40) return "var(--warning)";
   return "var(--primary)";
-}
-
-function githubStatus(score: number): string {
-  if (score > 75) return "DEAD";
-  if (score >= 40) return "STALE";
-  return "ACTIVE";
 }
 
 const VERDICT_META: Record<
@@ -74,16 +69,22 @@ export default async function ArticlePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const article   = getArticleBySlug(slug);
+  const article   = await getArticleBySlug(slug);
   if (!article) notFound();
 
-  const scoreCol  = scoreColor(article.vaporwareScore);
-  const vmeta     = VERDICT_META[article.verdict];
-  const ghStatus  = githubStatus(article.vaporwareScore);
+  const scoreCol = scoreColor(article.vaporware_score);
+  const vmeta    = VERDICT_META[article.verdict] ?? VERDICT_META.UNKNOWN;
+  const date     = article.published_at
+    ? new Date(article.published_at).toISOString().slice(0, 10)
+    : "—";
+
+  const ghStatus =
+    article.vaporware_score > 75 ? "DEAD" :
+    article.vaporware_score >= 40 ? "STALE" : "ACTIVE";
 
   const ghColor =
-    ghStatus === "DEAD"   ? "var(--danger)"  :
-    ghStatus === "STALE"  ? "var(--warning)" :
+    ghStatus === "DEAD"  ? "var(--danger)"  :
+    ghStatus === "STALE" ? "var(--warning)" :
     "var(--primary)";
 
   return (
@@ -126,7 +127,7 @@ export default async function ArticlePage({
                 className="text-xs tabular-nums"
                 style={{ fontFamily: "var(--font-geist-mono)", color: "var(--text-muted)" }}
               >
-                {article.date}
+                {date}
               </span>
               <span style={{ color: "var(--border)" }}>·</span>
               <span
@@ -136,7 +137,6 @@ export default async function ArticlePage({
                 {article.author}
               </span>
               <span style={{ color: "var(--border)" }}>·</span>
-              {/* Verdict badge */}
               <span
                 className={`text-xs font-bold tracking-widest px-2 py-0.5 rounded ${vmeta.glow ?? ""}`}
                 style={{
@@ -163,14 +163,14 @@ export default async function ArticlePage({
                   className="text-2xl font-bold tabular-nums"
                   style={{ fontFamily: "var(--font-geist-mono)", color: scoreCol }}
                 >
-                  {article.vaporwareScore}%
+                  {article.vaporware_score}%
                 </span>
               </div>
               <div className="score-bar-track">
                 <div
                   className="score-bar-fill"
                   style={{
-                    width:      `${article.vaporwareScore}%`,
+                    width:      `${article.vaporware_score}%`,
                     background: scoreCol,
                     boxShadow:  `0 0 8px ${scoreCol}80`,
                   }}
@@ -183,7 +183,7 @@ export default async function ArticlePage({
 
             {/* Article sections */}
             <div className="flex flex-col gap-10">
-              {article.sections.map((section) => (
+              {article.body.map((section) => (
                 <div key={section.heading} className="flex flex-col gap-3">
                   <h2
                     className="text-sm font-bold tracking-[0.12em] uppercase"
@@ -217,7 +217,7 @@ export default async function ArticlePage({
                   className="text-4xl font-bold tabular-nums"
                   style={{ fontFamily: "var(--font-geist-mono)", color: vmeta.color }}
                 >
-                  {article.vaporwareScore}%
+                  {article.vaporware_score}%
                 </span>
                 <span
                   className={`text-base font-bold tracking-widest ${vmeta.glow ?? ""}`}
@@ -227,7 +227,7 @@ export default async function ArticlePage({
                 </span>
               </div>
               <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-                {article.oneLiner}
+                {article.one_liner ?? ""}
               </p>
             </div>
 
@@ -238,42 +238,50 @@ export default async function ArticlePage({
           ══════════════════════════════════════════════════════════════ */}
           <aside className="w-full lg:w-80 xl:w-96 flex-shrink-0 flex flex-col gap-5">
 
-            {/* Tech Stack Reality Check */}
-            <div className="sidebar-card">
-              <p className="sidebar-card-title">TECH STACK REALITY CHECK</p>
+            {/* Tech Stack Reality Check — only shown when stack data is available */}
+            {(article.claimed_stack.length > 0 || article.real_stack.length > 0) && (
+              <div className="sidebar-card">
+                <p className="sidebar-card-title">TECH STACK REALITY CHECK</p>
 
-              {/* Claimed */}
-              <p
-                className="mb-2 text-xs font-semibold tracking-wider uppercase"
-                style={{ fontFamily: "var(--font-geist-mono)", color: "var(--text-muted)" }}
-              >
-                What They Claim
-              </p>
-              <ul className="stack-list mb-5">
-                {article.techClaimedStack.map((item) => (
-                  <li key={item}>
-                    <span style={{ color: "var(--danger)", flexShrink: 0 }}>✗</span>
-                    <span style={{ color: "var(--text-muted)" }}>{item}</span>
-                  </li>
-                ))}
-              </ul>
+                {article.claimed_stack.length > 0 && (
+                  <>
+                    <p
+                      className="mb-2 text-xs font-semibold tracking-wider uppercase"
+                      style={{ fontFamily: "var(--font-geist-mono)", color: "var(--text-muted)" }}
+                    >
+                      What They Claim
+                    </p>
+                    <ul className="stack-list mb-5">
+                      {article.claimed_stack.map((item) => (
+                        <li key={item}>
+                          <span style={{ color: "var(--danger)", flexShrink: 0 }}>✗</span>
+                          <span style={{ color: "var(--text-muted)" }}>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
 
-              {/* Real */}
-              <p
-                className="mb-2 text-xs font-semibold tracking-wider uppercase"
-                style={{ fontFamily: "var(--font-geist-mono)", color: "var(--text-muted)" }}
-              >
-                What It Actually Is
-              </p>
-              <ul className="stack-list">
-                {article.techRealStack.map((item) => (
-                  <li key={item}>
-                    <span style={{ color: "var(--primary)", flexShrink: 0 }}>✓</span>
-                    <span style={{ color: "var(--text-primary)" }}>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+                {article.real_stack.length > 0 && (
+                  <>
+                    <p
+                      className="mb-2 text-xs font-semibold tracking-wider uppercase"
+                      style={{ fontFamily: "var(--font-geist-mono)", color: "var(--text-muted)" }}
+                    >
+                      What It Actually Is
+                    </p>
+                    <ul className="stack-list">
+                      {article.real_stack.map((item) => (
+                        <li key={item}>
+                          <span style={{ color: "var(--primary)", flexShrink: 0 }}>✓</span>
+                          <span style={{ color: "var(--text-primary)" }}>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+            )}
 
             {/* Quick Stats */}
             <div className="sidebar-card">
@@ -284,7 +292,7 @@ export default async function ArticlePage({
                   Vaporware Score
                 </span>
                 <span style={{ color: scoreCol, fontFamily: "var(--font-geist-mono)", fontWeight: 700 }}>
-                  {article.vaporwareScore}%
+                  {article.vaporware_score}%
                 </span>
               </div>
 
@@ -294,10 +302,10 @@ export default async function ArticlePage({
                 </span>
                 <span
                   style={{
-                    color:       vmeta.color,
-                    fontFamily:  "var(--font-geist-mono)",
-                    fontWeight:  700,
-                    fontSize:    "0.65rem",
+                    color:         vmeta.color,
+                    fontFamily:    "var(--font-geist-mono)",
+                    fontWeight:    700,
+                    fontSize:      "0.65rem",
                     letterSpacing: "0.1em",
                   }}
                 >
@@ -313,7 +321,7 @@ export default async function ArticlePage({
                   className="tabular-nums"
                   style={{ color: "var(--text-primary)", fontFamily: "var(--font-geist-mono)" }}
                 >
-                  {article.date}
+                  {date}
                 </span>
               </div>
 
@@ -323,10 +331,10 @@ export default async function ArticlePage({
                 </span>
                 <span
                   style={{
-                    color:       ghColor,
-                    fontFamily:  "var(--font-geist-mono)",
-                    fontWeight:  700,
-                    fontSize:    "0.65rem",
+                    color:         ghColor,
+                    fontFamily:    "var(--font-geist-mono)",
+                    fontWeight:    700,
+                    fontSize:      "0.65rem",
                     letterSpacing: "0.1em",
                   }}
                 >

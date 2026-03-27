@@ -12,6 +12,8 @@ import {
   Cell,
 } from "recharts";
 
+// ─── Shared types ─────────────────────────────────────────────────────────────
+
 interface TooltipEntry {
   name:  string;
   value: number;
@@ -24,42 +26,16 @@ interface CustomTooltipProps {
   label?:   string;
 }
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface FundingDataPoint {
-  name: string;
+export interface FundingDataPoint {
+  name:    string;
   funding: number;
-  code: number;
+  code:    number;
 }
 
-interface ScoreDataPoint {
-  name: string;
+export interface ScoreDataPoint {
+  name:  string;
   score: number;
 }
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-
-const FUNDING_DATA: FundingDataPoint[] = [
-  { name: "NeuralMesh",  funding: 12, code: 2   },
-  { name: "Symbiont",    funding: 3,  code: 28  },
-  { name: "Web4 DAO",    funding: 8,  code: 0.3 },
-  { name: "CortexNet",   funding: 5,  code: 11  },
-  { name: "AetherGrid",  funding: 19, code: 1   },
-  { name: "OpenMesh",    funding: 2,  code: 41  },
-  { name: "SynapseDAO",  funding: 4,  code: 8   },
-  { name: "Noosphere",   funding: 22, code: 0.8 },
-];
-
-const SCORE_DATA: ScoreDataPoint[] = [
-  { name: "Web4 DAO",   score: 99 },
-  { name: "NeuralMesh", score: 94 },
-  { name: "Noosphere",  score: 91 },
-  { name: "AetherGrid", score: 88 },
-  { name: "CortexNet",  score: 71 },
-  { name: "Symbiont",   score: 67 },
-  { name: "SynapseDAO", score: 55 },
-  { name: "OpenMesh",   score: 38 },
-];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -118,7 +94,7 @@ function ScoreTooltip({ active, payload, label }: CustomTooltipProps) {
   );
 }
 
-// ─── Chart Components ─────────────────────────────────────────────────────────
+// ─── Chart style constants ────────────────────────────────────────────────────
 
 const AXIS_STYLE = {
   fontFamily: "var(--font-geist-mono)",
@@ -131,11 +107,13 @@ const GRID_STYLE = {
   strokeDasharray: "3 3",
 };
 
-export function FundingVsCodeChart() {
+// ─── Chart Components ─────────────────────────────────────────────────────────
+
+export function FundingVsCodeChart({ data }: { data: FundingDataPoint[] }) {
   return (
     <ResponsiveContainer width="100%" height={300}>
       <BarChart
-        data={FUNDING_DATA}
+        data={data}
         margin={{ top: 10, right: 10, left: 0, bottom: 5 }}
         barGap={3}
         barCategoryGap="28%"
@@ -149,7 +127,7 @@ export function FundingVsCodeChart() {
           formatter={(value) => (value === "funding" ? "Funding ($M)" : "Code (kLoC)")}
         />
         <Bar dataKey="funding" name="funding" fill="#39FF14" radius={[2, 2, 0, 0]}>
-          {FUNDING_DATA.map((entry) => (
+          {data.map((entry) => (
             <Cell
               key={entry.name}
               fill="#39FF14"
@@ -158,7 +136,7 @@ export function FundingVsCodeChart() {
           ))}
         </Bar>
         <Bar dataKey="code" name="code" fill="#FF3B3B" radius={[2, 2, 0, 0]}>
-          {FUNDING_DATA.map((entry) => (
+          {data.map((entry) => (
             <Cell
               key={entry.name}
               fill="#FF3B3B"
@@ -171,11 +149,11 @@ export function FundingVsCodeChart() {
   );
 }
 
-export function VaporwareScoreChart() {
+export function VaporwareScoreChart({ data }: { data: ScoreDataPoint[] }) {
   return (
-    <ResponsiveContainer width="100%" height={300}>
+    <ResponsiveContainer width="100%" height={Math.max(200, data.length * 40)}>
       <BarChart
-        data={SCORE_DATA}
+        data={data}
         layout="vertical"
         margin={{ top: 5, right: 40, left: 10, bottom: 5 }}
         barCategoryGap="30%"
@@ -195,11 +173,11 @@ export function VaporwareScoreChart() {
           tick={AXIS_STYLE}
           axisLine={false}
           tickLine={false}
-          width={72}
+          width={90}
         />
         <Tooltip content={<ScoreTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
         <Bar dataKey="score" radius={[0, 2, 2, 0]}>
-          {SCORE_DATA.map((entry) => (
+          {data.map((entry) => (
             <Cell key={entry.name} fill={scoreColor(entry.score)} />
           ))}
         </Bar>
