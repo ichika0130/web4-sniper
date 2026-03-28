@@ -134,7 +134,7 @@ export default async function CrosshairsPage({
 
                     {/* Excerpt / one-liner */}
                     <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-                      {article.one_liner ?? (article.body[0]?.body ?? "")}
+                      {article.one_liner ?? (article.body?.[0]?.body ?? "")}
                     </p>
 
                     {/* Link */}

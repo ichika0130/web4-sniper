@@ -183,7 +183,7 @@ export default async function ArticlePage({
 
             {/* Article sections */}
             <div className="flex flex-col gap-10">
-              {article.body.map((section) => (
+              {(article.body ?? []).map((section) => (
                 <div key={section.heading} className="flex flex-col gap-3">
                   <h2
                     className="text-sm font-bold tracking-[0.12em] uppercase"

@@ -11,17 +11,17 @@ export interface Project {
   id: string;
   name: string;
   slug: string;
-  tagline: string | null;
-  website_url: string | null;
-  github_url: string | null;
+  tagline?: string | null;
+  website_url?: string | null;
+  github_url?: string | null;
   claimed_stack: string[];
   real_stack: string[];
   github_status: GithubStatus;
   vaporware_score: number;
   verdict: Verdict;
-  one_liner: string | null;
-  funding_usd: number | null;
-  kloc_shipped: number | null;
+  one_liner?: string | null;
+  funding_usd?: number | null;
+  kloc_shipped?: number | null;
 }
 
 export interface ArticleSection {
@@ -34,13 +34,13 @@ export interface Article {
   slug: string;
   title: string;
   author: string;
-  body: ArticleSection[];
-  published_at: string | null;
+  body: ArticleSection[] | null;
+  published_at?: string | null;
   project_name: string;
   project_slug: string;
   vaporware_score: number;
   verdict: Verdict;
-  one_liner: string | null;
+  one_liner?: string | null;
   claimed_stack: string[];
   real_stack: string[];
 }
